@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeetAI - Voice Meeting Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.18);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --accent: #ff2d75;
+            --success: #00d4aa;
+            --warning: #ffb800;
+            --blur: blur(20px);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            color: var(--text-primary);
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: var(--glass-shadow);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5);
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #fff 0%, #a8edea 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .glass-input {
+            width: 100%;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            color: var(--text-primary);
+            font-size: 16px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .glass-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .glass-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 16px;
+        }
+
+        .btn {
+            padding: 18px 32px;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #ff6b9c);
+            color: white;
+            box-shadow: 0 8px 24px rgba(255, 45, 117, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(255, 45, 117, 0.4);
+        }
+
+        .btn-primary.recording {
+            background: linear-gradient(135deg, var(--success), #00c9ff);
+            animation: pulse 2s infinite;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #00c9ff);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #00c9ff, var(--success));
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #ff8a00);
+            color: white;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 8px 24px rgba(0, 212, 170, 0.3); }
+            50% { transform: scale(1.02); box-shadow: 0 12px 32px rgba(0, 212, 170, 0.5); }
+            100% { transform: scale(1); box-shadow: 0 8px 24px rgba(0, 212, 170, 0.3); }
+        }
+
+        .status-indicator {
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .status-listening {
+            background: rgba(0, 212, 170, 0.2);
+            border-color: rgba(0, 212, 170, 0.3);
+        }
+
+        .status-idle {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .status-warning {
+            background: rgba(255, 184, 0, 0.2);
+            border-color: rgba(255, 184, 0, 0.3);
+        }
+
+        .conversation-display {
+            min-height: 400px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            margin-bottom: 24px;
+        }
+
+        .speaker-message {
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 20px;
+            position: relative;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .speaker-1 { background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3)); }
+        .speaker-2 { background: linear-gradient(135deg, rgba(255, 45, 117, 0.3), rgba(255, 107, 156, 0.3)); }
+        .speaker-3 { background: linear-gradient(135deg, rgba(0, 212, 170, 0.3), rgba(0, 201, 255, 0.3)); }
+        .speaker-4 { background: linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(255, 152, 0, 0.3)); }
+
+        .speaker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .message-content {
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #fff, #a8edea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .meetings-list {
+            grid-column: 1 / -1;
+            margin-top: 24px;
+        }
+
+        .meetings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .meeting-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .meeting-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .meeting-card:hover::before {
+            left: 100%;
+        }
+
+        .meeting-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(31, 38, 135, 0.4);
+        }
+
+        .meeting-header {
+            display: flex;
+            justify-content: between;
+            align-items: start;
+            margin-bottom: 16px;
+        }
+
+        .meeting-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            flex: 1;
+        }
+
+        .meeting-meta {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .meeting-preview {
+            opacity: 0.9;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .meeting-actions {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .meeting-card:hover .meeting-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: var(--accent);
+            transform: scale(1.1);
+        }
+
+        .summary-badge {
+            background: var(--success);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: var(--glass-bg);
+            backdrop-filter: var(--blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 24px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .close-modal:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .visualizer {
+            width: 100%;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .audio-bar {
+            position: absolute;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to top, var(--success), #00c9ff);
+            border-radius: 2px 2px 0 0;
+            transition: height 0.1s;
+        }
+
+        .tab-container {
+            margin-top: 24px;
+        }
+
+        .tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .tab.active {
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .markdown-content {
+            line-height: 1.6;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+            margin: 20px 0 10px 0;
+            color: #fff;
+        }
+
+        .markdown-content h2 {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 5px;
+        }
+
+        .markdown-content ul {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+
+        .markdown-content li {
+            margin: 5px 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.7;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .generate-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1>MeetAI</h1>
+            <p>AI-powered meeting transcription and analysis</p>
+        </div>
+
+        <div class="glass-card control-panel">
+            <h2 style="margin-bottom: 24px; font-size: 1.5rem;">🎙️ New Meeting</h2>
+            
+            <div class="input-group">
+                <label>📝 Meeting Title</label>
+                <input type="text" class="glass-input" id="meeting-title" placeholder="Team Standup Discussion" value="Team Discussion">
+            </div>
+
+            <div class="input-group">
+                <label>👥 Speakers</label>
+                <select class="glass-input glass-select" id="speaker-count">
+                    <option value="2">2 People</option>
+                    <option value="3">3 People</option>
+                    <option value="4">4 People</option>
+                    <option value="5">5+ People</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>🌐 Language</label>
+                <select class="glass-input glass-select" id="language-select">
+                    <option value="en-US">English (US)</option>
+                    <option value="en-GB">English (UK)</option>
+                    <option value="es-ES">Spanish</option>
+                    <option value="fr-FR">French</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary" id="startBtn">
+                <i class="fas fa-microphone"></i> Start Recording
+            </button>
+            
+            <button class="btn btn-warning" id="stopBtn" disabled>
+                <i class="fas fa-stop"></i> Stop Meeting
+            </button>
+
+            <div class="status-indicator" id="statusIndicator">
+                <i class="fas fa-pause-circle"></i> Ready to start meeting
+            </div>
+
+            <div class="visualizer" id="visualizer">
+                <!-- Audio bars will be generated here -->
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="phraseCount">0</div>
+                    <div class="stat-label">Phrases</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="speakerCount">2</div>
+                    <div class="stat-label">Speakers</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="activityTime">--:--</div>
+                    <div class="stat-label">Last Active</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="meetingDuration">0:00</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card">
+            <h2 style="margin-bottom: 24px; font-size: 1.5rem;">💬 Live Conversation</h2>
+            
+            <div class="conversation-display" id="conversationDisplay">
+                <div class="empty-state">
+                    <i class="fas fa-comments"></i>
+                    <p>Start the meeting to see live transcription</p>
+                </div>
+            </div>
+
+            <div class="generate-section" id="generateSection" style="display: none;">
+                <h3 style="margin-bottom: 16px;">🤖 AI Analysis Ready</h3>
+                <p style="margin-bottom: 20px; opacity: 0.8;">Generate a detailed summary and analysis of your meeting</p>
+                <button class="btn btn-success" id="generateBtn">
+                    <i class="fas fa-robot"></i> Generate AI Summary
+                </button>
+            </div>
+
+            <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" data-tab="summary">📊 Summary</div>
+                    <div class="tab" data-tab="analysis">🔍 Analysis</div>
+                </div>
+
+                <div class="tab-content active" id="summary-tab">
+                    <div class="markdown-content" id="summaryContent">
+                        Meeting summary will be generated after the meeting...
+                    </div>
+                </div>
+
+                <div class="tab-content" id="analysis-tab">
+                    <div class="markdown-content" id="analysisContent">
+                        Conversation analysis will appear here...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card meetings-list">
+            <h2 style="margin-bottom: 24px; font-size: 1.5rem;">📚 Meeting History</h2>
+            <div class="meetings-grid" id="meetingsGrid">
+                <div class="empty-state">
+                    <i class="fas fa-history"></i>
+                    <p>No meetings recorded yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Meeting Detail Modal -->
+    <div class="modal" id="meetingModal">
+        <div class="modal-content">
+            <button class="close-modal" id="closeModal">&times;</button>
+            <div id="meetingDetail"></div>
+        </div>
+    </div>
+
+    <script>
+        class MeetAIApp {
+            constructor() {
+                this.isTranscribing = false;
+                this.currentSessionId = null;
+                this.currentMeetingId = null;
+                this.updateInterval = null;
+                this.meetingStartTime = null;
+                this.initializeElements();
+                this.setupEventListeners();
+                this.setupTabs();
+                this.setupVisualizer();
+                this.loadMeetings();
+            }
+
+            initializeElements() {
+                // Control elements
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.generateBtn = document.getElementById('generateBtn');
+                this.generateSection = document.getElementById('generateSection');
+                this.statusIndicator = document.getElementById('statusIndicator');
+                this.conversationDisplay = document.getElementById('conversationDisplay');
+                this.meetingsGrid = document.getElementById('meetingsGrid');
+                this.phraseCount = document.getElementById('phraseCount');
+                this.speakerCount = document.getElementById('speakerCount');
+                this.activityTime = document.getElementById('activityTime');
+                this.meetingDuration = document.getElementById('meetingDuration');
+                this.visualizer = document.getElementById('visualizer');
+                this.languageSelect = document.getElementById('language-select');
+                this.speakerCountSelect = document.getElementById('speaker-count');
+                this.meetingTitle = document.getElementById('meeting-title');
+                this.summaryContent = document.getElementById('summaryContent');
+                this.analysisContent = document.getElementById('analysisContent');
+                
+                // Modal elements
+                this.meetingModal = document.getElementById('meetingModal');
+                this.closeModal = document.getElementById('closeModal');
+                this.meetingDetail = document.getElementById('meetingDetail');
+            }
+
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.startTranscription());
+                this.stopBtn.addEventListener('click', () => this.stopTranscription());
+                this.generateBtn.addEventListener('click', () => this.generateSummary());
+                this.closeModal.addEventListener('click', () => this.hideMeetingModal());
+                this.meetingModal.addEventListener('click', (e) => {
+                    if (e.target === this.meetingModal) this.hideMeetingModal();
+                });
+            }
+
+            setupTabs() {
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                        
+                        tab.classList.add('active');
+                        document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+                    });
+                });
+            }
+
+            setupVisualizer() {
+                for (let i = 0; i < 50; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'audio-bar';
+                    bar.style.left = `${i * 6}px`;
+                    bar.style.height = '0px';
+                    this.visualizer.appendChild(bar);
+                }
+            }
+
+            updateVisualizer() {
+                const bars = this.visualizer.querySelectorAll('.audio-bar');
+                bars.forEach(bar => {
+                    const height = Math.random() * 70 + 10;
+                    bar.style.height = `${height}px`;
+                });
+            }
+
+            async startTranscription() {
+                try {
+                    this.startBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    this.generateSection.style.display = 'none';
+                    this.statusIndicator.className = 'status-indicator status-listening';
+                    this.statusIndicator.innerHTML = '<i class="fas fa-microphone-alt"></i> Listening... Speak now';
+
+                    const response = await fetch('/api/start_transcription', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            language: this.languageSelect.value,
+                            speaker_count: parseInt(this.speakerCountSelect.value),
+                            meeting_title: this.meetingTitle.value
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.isTranscribing = true;
+                        this.currentSessionId = data.session_id;
+                        this.meetingStartTime = new Date();
+                        this.startBtn.classList.add('recording');
+                        this.speakerCount.textContent = this.speakerCountSelect.value;
+                        this.startUpdates();
+                    } else {
+                        throw new Error(data.error);
+                    }
+
+                } catch (error) {
+                    this.showError(error.message);
+                    this.resetControls();
+                }
+            }
+
+            async stopTranscription() {
+                if (!this.currentSessionId) {
+                    this.showError('No active meeting to stop');
+                    return;
+                }
+
+                try {
+                    this.stopBtn.disabled = true;
+                    this.stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+                    this.statusIndicator.className = 'status-indicator status-warning';
+                    this.statusIndicator.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Stopping meeting...';
+
+                    const response = await fetch(`/api/stop_transcription/${this.currentSessionId}`, {
+                        method: 'POST'
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.currentMeetingId = data.meeting.id;
+                        this.showMeetingStopped(data.meeting);
+                        this.loadMeetings();
+                    } else {
+                        throw new Error(data.error || 'Failed to stop meeting');
+                    }
+
+                } catch (error) {
+                    this.showError(error.message);
+                } finally {
+                    this.isTranscribing = false;
+                    this.currentSessionId = null;
+                    this.resetControls();
+                    this.stopUpdates();
+                }
+            }
+
+            async generateSummary() {
+                if (!this.currentMeetingId) {
+                    this.showError('No meeting available to generate summary');
+                    return;
+                }
+
+                try {
+                    this.generateBtn.disabled = true;
+                    this.generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+                    this.statusIndicator.className = 'status-indicator status-listening';
+                    this.statusIndicator.innerHTML = '<i class="fas fa-robot"></i> AI is analyzing your meeting...';
+
+                    const response = await fetch(`/api/generate_summary/${this.currentMeetingId}`, {
+                        method: 'POST'
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.displaySummary(data.summary, data.analysis);
+                        this.statusIndicator.className = 'status-indicator status-listening';
+                        this.statusIndicator.innerHTML = '<i class="fas fa-check-circle"></i> AI analysis complete!';
+                        this.loadMeetings(); // Refresh to show summary badge
+                    } else {
+                        throw new Error(data.error || 'Summary generation failed');
+                    }
+
+                } catch (error) {
+                    this.showError(error.message);
+                } finally {
+                    this.generateBtn.disabled = false;
+                    this.generateBtn.innerHTML = '<i class="fas fa-robot"></i> Generate AI Summary';
+                }
+            }
+
+            startUpdates() {
+                this.updateInterval = setInterval(async () => {
+                    if (this.currentSessionId) {
+                        await this.updateTranscriptionStatus();
+                        this.updateMeetingDuration();
+                        this.updateVisualizer();
+                    }
+                }, 1000);
+            }
+
+            stopUpdates() {
+                if (this.updateInterval) {
+                    clearInterval(this.updateInterval);
+                    this.updateInterval = null;
+                }
+            }
+
+            updateMeetingDuration() {
+                if (this.meetingStartTime) {
+                    const now = new Date();
+                    const diff = Math.floor((now - this.meetingStartTime) / 1000);
+                    const minutes = Math.floor(diff / 60);
+                    const seconds = diff % 60;
+                    this.meetingDuration.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+            }
+
+            async updateTranscriptionStatus() {
+                try {
+                    const response = await fetch(`/api/transcription_status/${this.currentSessionId}`);
+                    const data = await response.json();
+
+                    if (data.history) {
+                        this.updateConversationDisplay(data.history);
+                    }
+
+                    this.phraseCount.textContent = data.phrase_count;
+                    this.activityTime.textContent = new Date(data.recent_activity).toLocaleTimeString();
+
+                } catch (error) {
+                    console.error('Status update error:', error);
+                }
+            }
+
+            updateConversationDisplay(entries) {
+                if (entries.length === 0) return;
+
+                // Clear empty state if it exists
+                if (this.conversationDisplay.querySelector('.empty-state')) {
+                    this.conversationDisplay.innerHTML = '';
+                }
+
+                // Only add new entries
+                const existingIds = new Set(
+                    Array.from(this.conversationDisplay.querySelectorAll('.speaker-message'))
+                        .map(el => el.dataset.entryId)
+                );
+
+                entries.forEach(entry => {
+                    if (!existingIds.has(entry.id)) {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `speaker-message speaker-${entry.speaker}`;
+                        messageDiv.dataset.entryId = entry.id;
+                        
+                        messageDiv.innerHTML = `
+                            <div class="speaker-header">
+                                <span>Speaker ${entry.speaker}</span>
+                                <span>${new Date(entry.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                            <div class="message-content">${entry.text}</div>
+                        `;
+                        
+                        this.conversationDisplay.appendChild(messageDiv);
+                    }
+                });
+
+                this.conversationDisplay.scrollTop = this.conversationDisplay.scrollHeight;
+            }
+
+            showMeetingStopped(meeting) {
+                this.generateSection.style.display = 'block';
+                this.summaryContent.innerHTML = 'Meeting stopped. Click "Generate AI Summary" to analyze the conversation.';
+                this.analysisContent.innerHTML = 'Analysis will be generated along with the summary.';
+            }
+
+            displaySummary(summary, analysis) {
+                // Use marked.js to render markdown
+                this.summaryContent.innerHTML = marked.parse(summary || '## No Summary Available\nSummary generation failed.');
+                this.analysisContent.innerHTML = marked.parse(analysis || '## No Analysis Available\nAnalysis generation failed.');
+            }
+
+            resetControls() {
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                this.stopBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Meeting';
+                this.startBtn.classList.remove('recording');
+                this.statusIndicator.className = 'status-indicator status-idle';
+                this.statusIndicator.innerHTML = '<i class="fas fa-pause-circle"></i> Ready to start meeting';
+                this.meetingDuration.textContent = '0:00';
+                this.phraseCount.textContent = '0';
+            }
+
+            async loadMeetings() {
+                try {
+                    const response = await fetch('/api/meetings');
+                    const meetings = await response.json();
+
+                    this.meetingsGrid.innerHTML = '';
+
+                    if (meetings.length === 0) {
+                        this.meetingsGrid.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fas fa-history"></i>
+                                <p>No meetings recorded yet</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    meetings.forEach(meeting => {
+                        const meetingCard = document.createElement('div');
+                        meetingCard.className = 'meeting-card';
+                        meetingCard.innerHTML = `
+                            <div class="meeting-actions">
+                                <button class="action-btn" onclick="app.viewMeeting('${meeting.id}')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="action-btn" onclick="app.deleteMeeting('${meeting.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            <div class="meeting-header">
+                                <div>
+                                    <div class="meeting-title">
+                                        ${meeting.title}
+                                        ${meeting.summary_generated ? '<span class="summary-badge">AI Analyzed</span>' : ''}
+                                    </div>
+                                    <div class="meeting-meta">
+                                        <span>${new Date(meeting.start_time).toLocaleDateString()}</span>
+                                        <span>${meeting.speaker_count} speakers</span>
+                                        <span>${meeting.phrase_count} phrases</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="meeting-preview">
+                                ${meeting.last_phrase || 'No conversation recorded'}
+                            </div>
+                            ${!meeting.summary_generated ? `
+                                <div style="margin-top: 15px; text-align: center;">
+                                    <button class="btn btn-success" style="padding: 8px 16px; font-size: 0.9rem;" onclick="app.generateMeetingSummary('${meeting.id}')">
+                                        <i class="fas fa-robot"></i> Generate AI Summary
+                                    </button>
+                                </div>
+                            ` : ''}
+                        `;
+                        this.meetingsGrid.appendChild(meetingCard);
+                    });
+
+                } catch (error) {
+                    console.error('Error loading meetings:', error);
+                }
+            }
+
+            async generateMeetingSummary(meetingId) {
+                try {
+                    const response = await fetch(`/api/generate_summary/${meetingId}`, {
+                        method: 'POST'
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.loadMeetings(); // Refresh the list
+                        this.showError('AI summary generated successfully!', 'success');
+                    } else {
+                        throw new Error(data.error);
+                    }
+
+                } catch (error) {
+                    this.showError('Failed to generate summary');
+                }
+            }
+
+            async viewMeeting(meetingId) {
+                try {
+                    const response = await fetch(`/api/meetings/${meetingId}`);
+                    const meeting = await response.json();
+
+                    this.meetingDetail.innerHTML = `
+                        <h2 style="margin-bottom: 20px;">${meeting.title}</h2>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+                            <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 12px;">
+                                <div style="font-size: 0.9rem; opacity: 0.8;">Date</div>
+                                <div>${new Date(meeting.start_time).toLocaleString()}</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 12px;">
+                                <div style="font-size: 0.9rem; opacity: 0.8;">Duration</div>
+                                <div>${meeting.phrase_count} phrases</div>
+                            </div>
+                        </div>
+                        
+                        <h3 style="margin-bottom: 16px;">Conversation</h3>
+                        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; margin-bottom: 24px; max-height: 200px; overflow-y: auto;">
+                            <pre style="white-space: pre-wrap; font-family: inherit;">${meeting.conversation}</pre>
+                        </div>
+                        
+                        <h3 style="margin-bottom: 16px;">AI Summary</h3>
+                        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+                            <div class="markdown-content">${meeting.summary ? marked.parse(meeting.summary) : '<p>No summary generated yet. <button class="btn btn-success" onclick="app.generateMeetingSummary(\'' + meeting.id + '\')">Generate Summary</button></p>'}</div>
+                        </div>
+                        
+                        ${meeting.analysis ? `
+                            <h3 style="margin-bottom: 16px;">Conversation Analysis</h3>
+                            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px;">
+                                <div class="markdown-content">${marked.parse(meeting.analysis)}</div>
+                            </div>
+                        ` : ''}
+                    `;
+
+                    this.meetingModal.style.display = 'flex';
+
+                } catch (error) {
+                    this.showError('Failed to load meeting details');
+                }
+            }
+
+            async deleteMeeting(meetingId) {
+                if (!confirm('Are you sure you want to delete this meeting?')) return;
+
+                try {
+                    const response = await fetch(`/api/meetings/${meetingId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.loadMeetings();
+                    } else {
+                        throw new Error(data.error);
+                    }
+
+                } catch (error) {
+                    this.showError('Failed to delete meeting');
+                }
+            }
+
+            hideMeetingModal() {
+                this.meetingModal.style.display = 'none';
+            }
+
+            showError(message, type = 'error') {
+                const className = type === 'success' ? 'status-listening' : 'status-idle';
+                const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+                
+                this.statusIndicator.className = `status-indicator ${className}`;
+                this.statusIndicator.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+                
+                // Clear error after 5 seconds
+                if (type === 'error') {
+                    setTimeout(() => {
+                        this.statusIndicator.className = 'status-indicator status-idle';
+                        this.statusIndicator.innerHTML = '<i class="fas fa-pause-circle"></i> Ready to start meeting';
+                    }, 5000);
+                }
+            }
+        }
+
+        // Initialize the app
+        const app = new MeetAIApp();
+    </script>
+</body>
+</html>
